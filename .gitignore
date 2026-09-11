@@ -1,48 +1,62 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
+# ── Secrets — never commit ────────────────────────────────────────────────────
+.env
+*.env
+!*.env.example
+*.p8
+*.jks
+*.keystore
+dart_defines.json          # use dart_defines.example.json as template
+
+# ── Claude / project tooling ──────────────────────────────────────────────────
+.claude/
+memory/
+
+# ── macOS / Windows metadata ──────────────────────────────────────────────────
 .DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+Thumbs.db
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# ── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
 
-# Local build defines (contains real credentials)
-dart_defines.json
+# ── Build output ──────────────────────────────────────────────────────────────
+build/
+dist/
+services/worker_python/temp/
 
-# Flutter/Dart/Pub related
+# ── Flutter / Dart / Pub ──────────────────────────────────────────────────────
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
 /coverage/
-
-# Symbolication related
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# ── Android Studio ────────────────────────────────────────────────────────────
+*.iml
+*.ipr
+*.iws
+.idea/
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.class
+*.log
+*.swp
+.atom/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/

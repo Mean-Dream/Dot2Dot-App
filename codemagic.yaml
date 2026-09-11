@@ -1,0 +1,141 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# WonderDot — Codemagic CI/CD
+#
+# PREREQUISITES (one-time setup in Codemagic UI before first iOS build):
+#
+#   1. Team → Integrations → App Store Connect → Add API key
+#      (generate key at appstoreconnect.apple.com → Users & Access → Keys)
+#
+#   2. Team → Integrations → Apple Developer Portal → Connect
+#      (used for automatic code signing)
+#
+#   3. Team → Global variables and secrets → Create group "wonderdot_secrets"
+#      Add these variables (mark sensitive ones as secret):
+#        SUPABASE_URL            — not secret
+#        SUPABASE_ANON_KEY       — secret
+#        REVENUECAT_ANDROID_KEY  — secret
+#        REVENUECAT_IOS_KEY      — secret  (get from app.revenuecat.com → API Keys)
+#        SENTRY_DSN              — secret
+#        AMPLITUDE_API_KEY       — secret
+#        API_URL                 — not secret (your deployed API, or localhost for now)
+#
+#   4. In App Store Connect: create the WonderDot iOS app with bundle ID
+#      com.meandream.wonderdot before the first TestFlight publish.
+# ─────────────────────────────────────────────────────────────────────────────
+
+workflows:
+
+  # ── iOS → TestFlight ───────────────────────────────────────────────────────
+  ios-release:
+    name: iOS Release → TestFlight
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.meandream.wonderdot
+      groups:
+        - wonderdot_secrets
+    working_directory: apps/client_flutter
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+    scripts:
+      - name: Generate iOS project structure
+        script: |
+          # flutter create --platforms=ios cannot run on Windows, so Codemagic's
+          # Mac runner does it here. The generated ios/ folder is not committed.
+          flutter create --platforms=ios --org com.meandream .
+
+          # flutter create derives the bundle ID from pubspec name (client_flutter
+          # → clientFlutter). Replace with the real bundle ID.
+          sed -i '' \
+            -e 's/com\.meandream\.clientFlutter/com.meandream.wonderdot/g' \
+            -e 's/com\.meandream\.client_flutter/com.meandream.wonderdot/g' \
+            ios/Runner.xcodeproj/project.pbxproj
+
+      - name: Add wonderdot:// URL scheme (deep links)
+        script: |
+          # Remove any default URL types first so Add commands don't conflict.
+          /usr/libexec/PlistBuddy \
+            -c "Delete :CFBundleURLTypes" \
+            ios/Runner/Info.plist 2>/dev/null || true
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleURLTypes array" \
+            -c "Add :CFBundleURLTypes:0 dict" \
+            -c "Add :CFBundleURLTypes:0:CFBundleTypeRole string Editor" \
+            -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" \
+            -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string wonderdot" \
+            ios/Runner/Info.plist
+
+      - name: Install Flutter dependencies
+        script: flutter pub get
+
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            --dart-define=REVENUECAT_IOS_KEY="$REVENUECAT_IOS_KEY" \
+            --dart-define=SENTRY_DSN="$SENTRY_DSN" \
+            --dart-define=AMPLITUDE_API_KEY="$AMPLITUDE_API_KEY" \
+            --dart-define=API_URL="${API_URL:-http://localhost:3000}"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
+
+  # ── Android → Google Play internal track ──────────────────────────────────
+  android-release:
+    name: Android Release → Play Store (internal)
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      groups:
+        - wonderdot_secrets
+      android_signing:
+        - wonderdot_keystore   # Upload your keystore in Team → Code signing → Android
+    working_directory: apps/client_flutter
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+    scripts:
+      - name: Install Flutter dependencies
+        script: flutter pub get
+
+      - name: Build AAB
+        script: |
+          flutter build appbundle --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            --dart-define=REVENUECAT_ANDROID_KEY="$REVENUECAT_ANDROID_KEY" \
+            --dart-define=SENTRY_DSN="$SENTRY_DSN" \
+            --dart-define=AMPLITUDE_API_KEY="$AMPLITUDE_API_KEY" \
+            --dart-define=API_URL="${API_URL:-http://localhost:3000}"
+
+    artifacts:
+      - build/app/outputs/bundle/release/app-release.aab
+
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true

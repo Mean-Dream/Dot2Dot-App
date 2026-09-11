@@ -20,13 +20,10 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        working-directory: apps/client_flutter
         run: flutter pub get
 
       - name: Analyze
-        working-directory: apps/client_flutter
         run: flutter analyze --fatal-infos
 
       - name: Test
-        working-directory: apps/client_flutter
         run: flutter test

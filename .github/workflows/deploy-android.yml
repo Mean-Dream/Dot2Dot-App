@@ -1,0 +1,74 @@
+name: Deploy Android (Play Internal)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build AAB & Upload
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Decode the keystore from the base64 secret
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "${{ github.workspace }}/wonderdot-release.jks"
+
+      # Write key.properties so build.gradle.kts can sign the release build
+      - name: Write key.properties
+        run: |
+          cat > apps/client_flutter/android/key.properties <<EOF
+          storePassword=${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=${{ github.workspace }}/wonderdot-release.jks
+          EOF
+
+      # Write dart_defines.json from secrets
+      - name: Write dart_defines.json
+        run: |
+          cat > apps/client_flutter/dart_defines.json <<EOF
+          {
+            "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
+            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}",
+            "API_URL": "${{ secrets.API_URL }}",
+            "REVENUECAT_ANDROID_KEY": "${{ secrets.REVENUECAT_ANDROID_KEY }}",
+            "SENTRY_DSN": "${{ secrets.SENTRY_DSN }}",
+            "AMPLITUDE_API_KEY": "${{ secrets.AMPLITUDE_API_KEY }}"
+          }
+          EOF
+
+      - name: Install dependencies
+        working-directory: apps/client_flutter
+        run: flutter pub get
+
+      # Use GITHUB_RUN_NUMBER as the build number so every deploy has a unique versionCode
+      - name: Build release AAB
+        working-directory: apps/client_flutter
+        run: |
+          flutter build appbundle \
+            --dart-define-from-file=dart_defines.json \
+            --release \
+            --build-number=${{ github.run_number }}
+
+      - name: Upload to Play Internal Testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.meandream.wonderdot
+          releaseFiles: apps/client_flutter/build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed

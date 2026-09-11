@@ -1,0 +1,7 @@
+packages:
+  - apps/*
+  - services/api_node
+  - infra/supabase
+
+onlyBuiltDependencies:
+  - esbuild
