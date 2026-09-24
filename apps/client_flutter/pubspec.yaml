@@ -47,7 +47,7 @@ dependencies:
   purchases_flutter: ^8.0.0
   app_links: 6.3.2
   url_launcher: ^6.3.0
-  sentry_flutter: ^8.15.0
+  sentry_flutter: ^8.0.0
   amplitude_flutter: ^4.0.0
   shared_preferences: ^2.5.5
   flutter_riverpod: ^3.3.2
