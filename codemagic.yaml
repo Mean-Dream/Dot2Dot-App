@@ -78,10 +78,15 @@ workflows:
         script: |
           # Code signing must run AFTER flutter create generates the ios/ folder.
           keychain initialize
-          app-store-connect fetch-signing-files "com.meandream.wonderdot" \
-            --type IOS_APP_STORE \
-            --create
           keychain add-certificates
+
+          # Install provisioning profile from environment variable
+          PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_HOME"
+          PROFILE_PATH="$PROFILES_HOME/wonderdot_app_store.mobileprovision"
+          echo "${CM_PROVISIONING_PROFILE}" | base64 --decode > "$PROFILE_PATH"
+          echo "Installed provisioning profile at $PROFILE_PATH"
+
           xcode-project use-profiles
 
       - name: Install Flutter dependencies
