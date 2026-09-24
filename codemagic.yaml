@@ -92,15 +92,19 @@ workflows:
       - name: Install Flutter dependencies
         script: flutter pub get
 
-      - name: Pin sentry-cocoa version
+      - name: Diagnose and patch sentry-cocoa version
         script: |
-          # sentry_flutter 8.13.x/8.14.x pulls latest sentry-cocoa via SPM, but
-          # sentry-cocoa 8.49.0+ removed SentryBinaryImageCache.image — pin to 8.48.0.
           SENTRY_DIR=$(find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 1 -name "sentry_flutter-*" -type d | head -1)
-          PKG_SWIFT="$SENTRY_DIR/ios/sentry_flutter/Package.swift"
-          echo "Patching $PKG_SWIFT"
-          sed -i '' 's|\.package(url: "https://github\.com/getsentry/sentry-cocoa\.git"[^)]*)|.package(url: "https://github.com/getsentry/sentry-cocoa.git", exact: "8.48.0")|' "$PKG_SWIFT"
-          grep "sentry-cocoa" "$PKG_SWIFT"
+          echo "=== sentry_flutter dir: $SENTRY_DIR ==="
+          # Show all Package.swift files found
+          find "$SENTRY_DIR/ios" -name "Package.swift" | while read f; do
+            echo "--- $f ---"
+            cat "$f"
+          done
+          # Show the offending Swift lines
+          SWIFT_FILE="$SENTRY_DIR/ios/sentry_flutter/Sources/sentry_flutter/SentryFlutterPlugin.swift"
+          echo "=== SentryFlutterPlugin.swift lines 260-270 ==="
+          sed -n '260,270p' "$SWIFT_FILE"
 
       - name: Build IPA
         script: |
