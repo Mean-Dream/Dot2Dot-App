@@ -33,7 +33,7 @@ workflows:
       app_store_connect: Codemagic
     environment:
       flutter: stable
-      xcode: 15.4
+      xcode: 15.3
       cocoapods: default
       groups:
         - wonderdot_secrets
